@@ -1,7 +1,6 @@
 ﻿using System.Diagnostics;
 using Location_Tracker.Models;
 using Location_Tracker.Services;
-using Microsoft.Maui.Controls.Maps;
 using Microsoft.Maui.Maps;
 
 namespace Location_Tracker
@@ -10,6 +9,7 @@ namespace Location_Tracker
     {
         private readonly LocationTrackingService _locationTrackingService = new();
         private readonly LocationDatabaseService _locationDatabase = new();
+        private readonly HeatMapService _heatMapService = new();
 
         public MainPage()
         {
@@ -30,49 +30,34 @@ namespace Location_Tracker
                 return;
             }
 
-            // Start listening for multiple foreground location updates.
+            // Start collecting foreground location updates.
             await _locationTrackingService.StartTrackingAsync();
 
-            // Retrieve previously saved locations from SQLite.
+            // Retrieve all saved readings so density can be calculated
+            // from the user's accumulated location history.
             List<LocationRecord> savedLocations =
                 await _locationDatabase.GetLocationsAsync();
 
             Debug.WriteLine(
-                $"Map data: {savedLocations.Count} saved location record(s) retrieved.");
+                $"Heat map data: {savedLocations.Count} saved location record(s) retrieved.");
 
-            DisplaySavedLocations(savedLocations);
-        }
+            // Convert stored coordinates into density-based map regions.
+            _heatMapService.RenderHeatMap(
+                LocationMap,
+                savedLocations);
 
-        private void DisplaySavedLocations(List<LocationRecord> savedLocations)
-        {
-            LocationMap.Pins.Clear();
-
-            foreach (LocationRecord record in savedLocations)
-            {
-                // Convert the stored latitude and longitude into the
-                // Location object required by the .NET MAUI Map control.
-                Microsoft.Maui.Devices.Sensors.Location mapLocation =
-                    new(record.Latitude, record.Longitude);
-
-                Pin pin = new()
-                {
-                    Label = "Saved Location",
-                    Address = record.Timestamp.ToLocalTime().ToString("g"),
-                    Type = PinType.Place,
-                    Location = mapLocation
-                };
-
-                LocationMap.Pins.Add(pin);
-            }
-
-            // Center the map on the most recently recorded location
-            // instead of leaving the map at its default Maui, Hawaii region.
+            /*
+             * Center the map on the most recent stored location after
+             * the heat-map regions have been rendered.
+             */
             if (savedLocations.Count > 0)
             {
-                LocationRecord latestLocation = savedLocations[^1];
+                LocationRecord latestLocation =
+                    savedLocations[^1];
 
-                Microsoft.Maui.Devices.Sensors.Location center =
-                    new(latestLocation.Latitude, latestLocation.Longitude);
+                Location center = new(
+                    latestLocation.Latitude,
+                    latestLocation.Longitude);
 
                 LocationMap.MoveToRegion(
                     MapSpan.FromCenterAndRadius(
@@ -83,6 +68,7 @@ namespace Location_Tracker
 
         protected override void OnDisappearing()
         {
+            // Stop foreground tracking when this page is no longer visible.
             _locationTrackingService.StopTracking();
 
             base.OnDisappearing();
