@@ -18,8 +18,8 @@ namespace Location_Tracker
             PermissionStatus status =
                 await LocationPermissionService.CheckAndRequestLocationPermissionAsync();
 
-            // If the user denies location access, stop location-dependent
-            // processing safely instead of allowing the app to fail.
+            // Stop location-dependent processing safely when permission
+            // has not been granted.
             if (status != PermissionStatus.Granted)
             {
                 return;
