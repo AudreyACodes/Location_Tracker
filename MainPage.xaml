@@ -1,16 +1,12 @@
 ﻿<?xml version="1.0" encoding="utf-8" ?>
-    
+
 <ContentPage
     x:Class="Location_Tracker.MainPage"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:maps="http://schemas.microsoft.com/dotnet/2021/maui/maps"
     Shell.NavBarIsVisible="False">
 
-    <!--
-        MainView uses a two-row layout:
-        the top row contains the application header,
-        and the remaining space is reserved for the map.
-    -->
     <Grid RowDefinitions="64,*">
 
         <!-- Application header styled to match the professor's reference layout. -->
@@ -28,15 +24,11 @@
 
         </Grid>
 
-        <!--
-            The map will be added to this container during the Maps Integration
-            increment. Keeping the container separate keeps the UI and map logic
-            organized.
-        -->
-        <Grid
-            x:Name="MapContainer"
+        <!-- Displays the native Android map and the user's current location. -->
+        <maps:Map
+            x:Name="LocationMap"
             Grid.Row="1"
-            BackgroundColor="White" />
+            IsShowingUser="True" />
 
     </Grid>
 
