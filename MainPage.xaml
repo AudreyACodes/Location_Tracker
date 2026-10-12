@@ -24,7 +24,7 @@
 
         </Grid>
 
-        <!-- Displays the native Android map and the user's current location. -->
+        <!-- Displays the .NET MAUI map and the user's current location. -->
         <maps:Map
             x:Name="LocationMap"
             Grid.Row="1"

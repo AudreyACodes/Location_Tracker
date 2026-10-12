@@ -1,6 +1,4 @@
-﻿using Microsoft.Extensions.DependencyInjection;
-
-namespace Location_Tracker
+﻿namespace Location_Tracker
 {
     public partial class App : Application
     {

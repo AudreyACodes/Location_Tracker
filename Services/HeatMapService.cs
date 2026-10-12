@@ -6,12 +6,25 @@ using MauiMap = Microsoft.Maui.Controls.Maps.Map;
 namespace Location_Tracker.Services
 {
     /// <summary>
-    /// Converts saved geographic locations into density-based map circles.
-    /// Nearby coordinates are grouped together so frequently visited areas
-    /// produce stronger heat-map intensity than less frequently visited areas.
+    /// Converts saved geographic locations into density based map regions.
+    /// Nearby readings are grouped so frequently visited areas display
+    /// with greater heat map intensity than less frequently visited areas.
     /// </summary>
     public class HeatMapService
     {
+        private const int CoordinateGroupingDecimalPlaces = 4;
+
+        private const double HighDensityThreshold = 0.67;
+        private const double MediumDensityThreshold = 0.34;
+
+        private const double HighDensityRadiusMeters = 90;
+        private const double MediumDensityRadiusMeters = 65;
+        private const double LowDensityRadiusMeters = 45;
+
+        /// <summary>
+        /// Calculates location density from saved records and renders
+        /// the resulting heat map regions on the supplied MAUI map.
+        /// </summary>
         public void RenderHeatMap(
             MauiMap map,
             List<LocationRecord> savedLocations)
@@ -25,15 +38,20 @@ namespace Location_Tracker.Services
             }
 
             /*
-             * Rounding coordinates to four decimal places groups readings
-             * that occurred within a small geographic area. Each group
-             * represents one heat-map density region.
+             * Coordinates are rounded before grouping so readings from
+             * approximately the same geographic area contribute to one
+             * density region instead of being rendered independently.
              */
             var locationGroups = savedLocations
                 .GroupBy(record => new
                 {
-                    Latitude = Math.Round(record.Latitude, 4),
-                    Longitude = Math.Round(record.Longitude, 4)
+                    Latitude = Math.Round(
+                        record.Latitude,
+                        CoordinateGroupingDecimalPlaces),
+
+                    Longitude = Math.Round(
+                        record.Longitude,
+                        CoordinateGroupingDecimalPlaces)
                 })
                 .Select(group => new
                 {
@@ -49,9 +67,9 @@ namespace Location_Tracker.Services
             foreach (var group in locationGroups)
             {
                 /*
-                 * Density is normalized against the busiest location.
-                 * This allows visual intensity to scale with the stored data
-                 * instead of displaying every coordinate identically.
+                 * Each region is normalized against the highest density
+                 * found in the saved data. The resulting ratio controls
+                 * both the color intensity and geographic radius.
                  */
                 double densityRatio =
                     (double)group.Density / maximumDensity;
@@ -59,23 +77,20 @@ namespace Location_Tracker.Services
                 Color fillColor;
                 double radiusMeters;
 
-                if (densityRatio >= 0.67)
+                if (densityRatio >= HighDensityThreshold)
                 {
-                    // High-density area.
                     fillColor = Color.FromArgb("#99FF0000");
-                    radiusMeters = 90;
+                    radiusMeters = HighDensityRadiusMeters;
                 }
-                else if (densityRatio >= 0.34)
+                else if (densityRatio >= MediumDensityThreshold)
                 {
-                    // Medium-density area.
                     fillColor = Color.FromArgb("#88FFA500");
-                    radiusMeters = 65;
+                    radiusMeters = MediumDensityRadiusMeters;
                 }
                 else
                 {
-                    // Lower-density area.
                     fillColor = Color.FromArgb("#775FFD00");
-                    radiusMeters = 45;
+                    radiusMeters = LowDensityRadiusMeters;
                 }
 
                 Circle heatCircle = new()
@@ -85,7 +100,6 @@ namespace Location_Tracker.Services
                         group.Longitude),
 
                     Radius = new Distance(radiusMeters),
-
                     FillColor = fillColor,
                     StrokeColor = fillColor,
                     StrokeWidth = 2

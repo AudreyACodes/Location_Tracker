@@ -3,15 +3,20 @@
 namespace Location_Tracker.Services
 {
     /// <summary>
-    /// Handles checking and requesting the location permission required
-    /// by the Location Tracker application.
+    /// Manages the foreground location permission required by the
+    /// Location Tracker application.
     /// </summary>
     public static class LocationPermissionService
     {
+        /// <summary>
+        /// Checks the current foreground location permission and requests
+        /// access only when permission has not already been granted.
+        /// </summary>
+        /// <returns>
+        /// The resulting location permission status.
+        /// </returns>
         public static async Task<PermissionStatus> CheckAndRequestLocationPermissionAsync()
         {
-            // Check first so the app does not repeatedly prompt a user
-            // who has already granted location access.
             PermissionStatus status =
                 await Permissions.CheckStatusAsync<Permissions.LocationWhenInUse>();
 
@@ -20,8 +25,6 @@ namespace Location_Tracker.Services
                 return status;
             }
 
-            // Request foreground location access when permission
-            // has not already been granted.
             status =
                 await Permissions.RequestAsync<Permissions.LocationWhenInUse>();
 

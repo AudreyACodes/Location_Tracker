@@ -13,6 +13,14 @@ namespace Location_Tracker.Services
         private readonly LocationDatabaseService _locationDatabase = new();
         private bool _handlersRegistered;
 
+        /// <summary>
+        /// Starts foreground geolocation monitoring and registers the
+        /// event handlers used to process location updates.
+        /// </summary>
+        /// <returns>
+        /// True when foreground location monitoring starts successfully;
+        /// otherwise, false.
+        /// </returns>
         public async Task<bool> StartTrackingAsync()
         {
             try
@@ -22,8 +30,8 @@ namespace Location_Tracker.Services
                     return true;
                 }
 
-                // Register the event handlers once so each location update
-                // is processed only once.
+                // Register handlers once so a location update is not
+                // processed multiple times by duplicate subscriptions.
                 if (!_handlersRegistered)
                 {
                     Geolocation.LocationChanged += OnLocationChanged;
@@ -31,8 +39,8 @@ namespace Location_Tracker.Services
                     _handlersRegistered = true;
                 }
 
-                // Foreground listening provides multiple location readings
-                // as the device position changes.
+                // High-accuracy foreground monitoring supplies the sequence
+                // of readings used to build the stored location history.
                 GeolocationListeningRequest request =
                     new(GeolocationAccuracy.High);
 
@@ -56,6 +64,10 @@ namespace Location_Tracker.Services
             }
         }
 
+        /// <summary>
+        /// Stops foreground location monitoring and removes registered
+        /// geolocation event handlers.
+        /// </summary>
         public void StopTracking()
         {
             try
@@ -82,8 +94,8 @@ namespace Location_Tracker.Services
         {
             try
             {
-                // Convert the location reported by .NET MAUI into the
-                // application's SQLite location-record model.
+                // Convert the MAUI location reading into the application's
+                // persistent SQLite model before saving it.
                 LocationRecord locationRecord = new()
                 {
                     Latitude = e.Location.Latitude,
@@ -99,7 +111,8 @@ namespace Location_Tracker.Services
             }
             catch (Exception ex)
             {
-                // A failed database write must not crash location tracking.
+                // A failed database write should not terminate
+                // foreground location monitoring.
                 Debug.WriteLine(
                     $"Location could not be saved: {ex.Message}");
             }
@@ -109,7 +122,8 @@ namespace Location_Tracker.Services
             object? sender,
             GeolocationListeningFailedEventArgs e)
         {
-            // Record a normal geolocation failure without terminating the app.
+            // Preserve application execution while recording the
+            // geolocation failure for diagnostic purposes.
             Debug.WriteLine(
                 $"Location listening failed: {e.Error}");
         }

@@ -5,6 +5,11 @@ using Microsoft.Maui.Maps;
 
 namespace Location_Tracker
 {
+    /// <summary>
+    /// Coordinates the Location Tracker user interface while delegating
+    /// permission handling, location tracking, persistence, and heat map
+    /// generation to their respective services.
+    /// </summary>
     public partial class MainPage : ContentPage
     {
         private readonly LocationTrackingService _locationTrackingService = new();
@@ -20,55 +25,67 @@ namespace Location_Tracker
         {
             base.OnAppearing();
 
-            // Location tracking can begin only after the user grants
-            // foreground location permission.
-            PermissionStatus status =
-                await LocationPermissionService.CheckAndRequestLocationPermissionAsync();
-
-            if (status != PermissionStatus.Granted)
+            try
             {
-                return;
+                PermissionStatus status =
+                    await LocationPermissionService
+                        .CheckAndRequestLocationPermissionAsync();
+
+                if (status != PermissionStatus.Granted)
+                {
+                    return;
+                }
+
+                bool trackingStarted =
+                    await _locationTrackingService.StartTrackingAsync();
+
+                if (!trackingStarted)
+                {
+                    Debug.WriteLine(
+                        "Foreground location tracking did not start.");
+                }
+
+                List<LocationRecord> savedLocations =
+                    await _locationDatabase.GetLocationsAsync();
+
+                Debug.WriteLine(
+                    $"Heat map data: {savedLocations.Count} " +
+                    "saved location record(s) retrieved.");
+
+                _heatMapService.RenderHeatMap(
+                    LocationMap,
+                    savedLocations);
+
+                /*
+                 * Center the map on the latest persisted reading so the
+                 * user sees the most recently recorded area immediately.
+                 */
+                if (savedLocations.Count > 0)
+                {
+                    LocationRecord latestLocation =
+                        savedLocations[^1];
+
+                    Location center = new(
+                        latestLocation.Latitude,
+                        latestLocation.Longitude);
+
+                    LocationMap.MoveToRegion(
+                        MapSpan.FromCenterAndRadius(
+                            center,
+                            Distance.FromKilometers(1)));
+                }
             }
-
-            // Start collecting foreground location updates.
-            await _locationTrackingService.StartTrackingAsync();
-
-            // Retrieve all saved readings so density can be calculated
-            // from the user's accumulated location history.
-            List<LocationRecord> savedLocations =
-                await _locationDatabase.GetLocationsAsync();
-
-            Debug.WriteLine(
-                $"Heat map data: {savedLocations.Count} saved location record(s) retrieved.");
-
-            // Convert stored coordinates into density-based map regions.
-            _heatMapService.RenderHeatMap(
-                LocationMap,
-                savedLocations);
-
-            /*
-             * Center the map on the most recent stored location after
-             * the heat-map regions have been rendered.
-             */
-            if (savedLocations.Count > 0)
+            catch (Exception ex)
             {
-                LocationRecord latestLocation =
-                    savedLocations[^1];
-
-                Location center = new(
-                    latestLocation.Latitude,
-                    latestLocation.Longitude);
-
-                LocationMap.MoveToRegion(
-                    MapSpan.FromCenterAndRadius(
-                        center,
-                        Distance.FromKilometers(1)));
+                // Preserve the application session while recording
+                // unexpected failures for debugging and diagnosis.
+                Debug.WriteLine(
+                    $"Location Tracker could not load normally: {ex.Message}");
             }
         }
 
         protected override void OnDisappearing()
         {
-            // Stop foreground tracking when this page is no longer visible.
             _locationTrackingService.StopTracking();
 
             base.OnDisappearing();
