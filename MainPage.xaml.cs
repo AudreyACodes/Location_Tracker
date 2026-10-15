@@ -7,14 +7,15 @@ namespace Location_Tracker
 {
     /// <summary>
     /// Coordinates the Location Tracker user interface while delegating
-    /// permission handling, location tracking, persistence, and heat map
-    /// generation to their respective services.
+    /// permission handling, location tracking, persistence, heat map
+    /// generation, and distance calculations to their respective services.
     /// </summary>
     public partial class MainPage : ContentPage
     {
         private readonly LocationTrackingService _locationTrackingService = new();
         private readonly LocationDatabaseService _locationDatabase = new();
         private readonly HeatMapService _heatMapService = new();
+        private readonly DistanceStatisticsService _distanceStatisticsService = new();
 
         public MainPage()
         {
@@ -36,15 +37,6 @@ namespace Location_Tracker
                     return;
                 }
 
-                bool trackingStarted =
-                    await _locationTrackingService.StartTrackingAsync();
-
-                if (!trackingStarted)
-                {
-                    Debug.WriteLine(
-                        "Foreground location tracking did not start.");
-                }
-
                 List<LocationRecord> savedLocations =
                     await _locationDatabase.GetLocationsAsync();
 
@@ -56,10 +48,8 @@ namespace Location_Tracker
                     LocationMap,
                     savedLocations);
 
-                /*
-                 * Center the map on the latest persisted reading so the
-                 * user sees the most recently recorded area immediately.
-                 */
+                UpdateDistanceDisplay(savedLocations);
+
                 if (savedLocations.Count > 0)
                 {
                     LocationRecord latestLocation =
@@ -74,19 +64,110 @@ namespace Location_Tracker
                             center,
                             Distance.FromKilometers(1)));
                 }
+
+                StartTrackingButton.IsEnabled = true;
+                StopTrackingButton.IsEnabled = false;
             }
             catch (Exception ex)
             {
-                // Preserve the application session while recording
-                // unexpected failures for debugging and diagnosis.
                 Debug.WriteLine(
                     $"Location Tracker could not load normally: {ex.Message}");
+            }
+        }
+
+        private async void OnStartTrackingClicked(
+            object sender,
+            EventArgs e)
+        {
+            try
+            {
+                PermissionStatus status =
+                    await LocationPermissionService
+                        .CheckAndRequestLocationPermissionAsync();
+
+                if (status != PermissionStatus.Granted)
+                {
+                    Debug.WriteLine(
+                        "Location permission was not granted.");
+
+                    return;
+                }
+
+                bool trackingStarted =
+                    await _locationTrackingService.StartTrackingAsync();
+
+                if (trackingStarted)
+                {
+                    StartTrackingButton.IsEnabled = false;
+                    StopTrackingButton.IsEnabled = true;
+
+                    Debug.WriteLine(
+                        "Location tracking started.");
+                }
+                else
+                {
+                    Debug.WriteLine(
+                        "Foreground location tracking did not start.");
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine(
+                    $"Location tracking could not start: {ex.Message}");
+            }
+        }
+
+        private async void OnStopTrackingClicked(
+            object sender,
+            EventArgs e)
+        {
+            _locationTrackingService.StopTracking();
+
+            StartTrackingButton.IsEnabled = true;
+            StopTrackingButton.IsEnabled = false;
+
+            Debug.WriteLine(
+                "Location tracking stopped.");
+
+            await RefreshDistanceDisplayAsync();
+        }
+
+        private void UpdateDistanceDisplay(
+            List<LocationRecord> locations)
+        {
+            double totalDistanceKilometers =
+                _distanceStatisticsService
+                    .CalculateTotalDistanceKilometers(locations);
+
+            double totalDistanceMiles =
+                totalDistanceKilometers * 0.621371;
+
+            DistanceLabel.Text =
+                $"Total Distance: {totalDistanceMiles:F2} mi";
+        }
+
+        private async Task RefreshDistanceDisplayAsync()
+        {
+            try
+            {
+                List<LocationRecord> savedLocations =
+                    await _locationDatabase.GetLocationsAsync();
+
+                UpdateDistanceDisplay(savedLocations);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine(
+                    $"Distance statistics could not be updated: {ex.Message}");
             }
         }
 
         protected override void OnDisappearing()
         {
             _locationTrackingService.StopTracking();
+
+            StartTrackingButton.IsEnabled = true;           
+            StopTrackingButton.IsEnabled = false;
 
             base.OnDisappearing();
         }

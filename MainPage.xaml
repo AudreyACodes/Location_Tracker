@@ -7,7 +7,7 @@
     xmlns:maps="http://schemas.microsoft.com/dotnet/2021/maui/maps"
     Shell.NavBarIsVisible="False">
 
-    <Grid RowDefinitions="64,*">
+    <Grid RowDefinitions="64,*,44,72">
 
         <!-- Application header styled to match the professor's reference layout. -->
         <Grid
@@ -29,6 +29,45 @@
             x:Name="LocationMap"
             Grid.Row="1"
             IsShowingUser="True" />
+
+        <!-- Displays the total distance calculated from saved location history. -->
+        <Grid
+            Grid.Row="2"
+            BackgroundColor="White"
+            Padding="16,4">
+
+            <Label
+                x:Name="DistanceLabel"
+                Text="Total Distance: 0.00 mi"
+                FontSize="16"
+                FontAttributes="Bold"
+                TextColor="Black"
+                VerticalOptions="Center" />
+
+        </Grid>
+
+        <!-- Controls for starting and stopping continuous location tracking. -->
+        <Grid
+            Grid.Row="3"
+            ColumnDefinitions="*,*"
+            ColumnSpacing="12"
+            Padding="16,10"
+            BackgroundColor="White">
+
+            <Button
+                x:Name="StartTrackingButton"
+                Grid.Column="0"
+                Text="Start Tracking"
+                Clicked="OnStartTrackingClicked" />
+
+            <Button
+                x:Name="StopTrackingButton"
+                Grid.Column="1"
+                Text="Stop Tracking"
+                Clicked="OnStopTrackingClicked"
+                IsEnabled="False" />
+
+        </Grid>
 
     </Grid>
 
