@@ -105,9 +105,10 @@ namespace Location_Tracker.Services
 
                 await _locationDatabase.SaveLocationAsync(locationRecord);
 
+                // Do not write sensitive latitude or longitude values
+                // to diagnostic logs.
                 Debug.WriteLine(
-                    $"Location saved: {locationRecord.Latitude}, " +
-                    $"{locationRecord.Longitude}");
+                    "Location record saved successfully.");
             }
             catch (Exception ex)
             {

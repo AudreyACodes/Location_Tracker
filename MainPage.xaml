@@ -7,9 +7,9 @@
     xmlns:maps="http://schemas.microsoft.com/dotnet/2021/maui/maps"
     Shell.NavBarIsVisible="False">
 
-    <Grid RowDefinitions="64,*,44,72">
+    <Grid RowDefinitions="64,*,44,44,72">
 
-        <!-- Application header styled to match the professor's reference layout. -->
+        <!-- Application header -->
         <Grid
             Grid.Row="0"
             BackgroundColor="#512BD4"
@@ -24,15 +24,97 @@
 
         </Grid>
 
-        <!-- Displays the .NET MAUI map and the user's current location. -->
+        <!-- Android and other supported platforms use the map -->
         <maps:Map
             x:Name="LocationMap"
             Grid.Row="1"
-            IsShowingUser="True" />
+            IsShowingUser="True"
+            IsVisible="{OnPlatform WinUI=False, Default=True}" />
 
-        <!-- Displays the total distance calculated from saved location history. -->
+        <!-- Windows uses a saved-location history list -->
+        <Grid
+            Grid.Row="1"
+            RowDefinitions="44,*"
+            BackgroundColor="White"
+            IsVisible="{OnPlatform WinUI=True, Default=False}">
+
+            <Label
+                Grid.Row="0"
+                Text="Saved Location History"
+                FontSize="18"
+                FontAttributes="Bold"
+                TextColor="Black"
+                Padding="16,10"
+                VerticalOptions="Center" />
+
+            <CollectionView
+                x:Name="LocationHistoryList"
+                Grid.Row="1">
+
+                <CollectionView.EmptyView>
+                    <Label
+                        Text="No saved location history yet."
+                        FontSize="16"
+                        TextColor="Gray"
+                        HorizontalOptions="Center"
+                        VerticalOptions="Center"
+                        Margin="20" />
+                </CollectionView.EmptyView>
+
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+
+                        <Frame
+                            Margin="12,6"
+                            Padding="12"
+                            BorderColor="#D0D0D0"
+                            CornerRadius="8"
+                            HasShadow="False">
+
+                            <VerticalStackLayout Spacing="4">
+
+                                <Label
+                                    Text="{Binding Timestamp, StringFormat='{}{0:MM/dd/yyyy h:mm:ss tt}'}"
+                                    FontAttributes="Bold"
+                                    TextColor="Black" />
+
+                                <Label
+                                    Text="{Binding Latitude, StringFormat='Latitude: {0:F6}'}"
+                                    TextColor="Black" />
+
+                                <Label
+                                    Text="{Binding Longitude, StringFormat='Longitude: {0:F6}'}"
+                                    TextColor="Black" />
+
+                            </VerticalStackLayout>
+
+                        </Frame>
+
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+
+            </CollectionView>
+
+        </Grid>
+
+        <!-- Displays the most recent/current position -->
         <Grid
             Grid.Row="2"
+            BackgroundColor="White"
+            Padding="16,4">
+
+            <Label
+                x:Name="CurrentPositionLabel"
+                Text="Current Position: Not available"
+                FontSize="15"
+                TextColor="Black"
+                VerticalOptions="Center" />
+
+        </Grid>
+
+        <!-- Displays total distance -->
+        <Grid
+            Grid.Row="3"
             BackgroundColor="White"
             Padding="16,4">
 
@@ -46,9 +128,9 @@
 
         </Grid>
 
-        <!-- Controls for starting and stopping continuous location tracking. -->
+        <!-- Start and Stop tracking controls -->
         <Grid
-            Grid.Row="3"
+            Grid.Row="4"
             ColumnDefinitions="*,*"
             ColumnSpacing="12"
             Padding="16,10"

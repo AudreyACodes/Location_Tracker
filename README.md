@@ -1,10 +1,12 @@
 # Location Tracker
 
-Location Tracker is a .NET MAUI application that records device location data, stores location history in SQLite, displays saved movement on a map, generates a heat map from saved location density, and calculates total traveled distance.
+Location Tracker is a .NET MAUI application that records device location data, stores location history in SQLite, displays saved movement history, and calculates total traveled distance.
+
+The application supports Android as the primary platform and Windows as the additional .NET MAUI target.
 
 ## Project Purpose
 
-The purpose of this project is to demonstrate multiplatform software development using .NET MAUI while applying software engineering concepts such as separation of responsibilities, persistent data storage, location permission handling, testing, and maintainable service design.
+The purpose of this project is to demonstrate multiplatform software development using .NET MAUI while applying software engineering concepts including separation of responsibilities, dependency inversion, persistent data storage, secure handling of sensitive location data, location permission handling, automated testing, and maintainable service design.
 
 ## Main Features
 
@@ -18,23 +20,29 @@ The purpose of this project is to demonstrate multiplatform software development
 
 5. Saved location history that remains available after the application is closed and reopened.
 
-6. Heat map visualization based on saved location readings.
+6. Android map and heat map visualization based on saved location readings.
 
-7. Total distance statistics displayed in miles.
+7. Windows saved location history displayed as a scrolling list.
 
-8. Unit testing using a fake location provider.
+8. Total distance statistics displayed in miles.
 
-9. Android support as the primary application target.
+9. Graceful location permission handling.
 
-10. Windows support as an additional .NET MAUI target.
+10. Unit testing of the ViewModel using a fake location provider.
+
+11. Android support as the primary application target.
+
+12. Windows support as an additional .NET MAUI target.
 
 ## Application Architecture
 
-The application separates major responsibilities into dedicated services.
+The application separates major responsibilities into dedicated components.
 
 MainPage  
 ↓  
 LocationPermissionService  
+
+MainPage  
 ↓  
 LocationTrackingService  
 ↓  
@@ -42,42 +50,60 @@ ILocationProvider
 ↓  
 MauiLocationProvider  
 
-LocationTrackingService also sends location records to:
-
+LocationTrackingService  
+↓  
 LocationDatabaseService  
 ↓  
-SQLite Database
+SQLite Database  
 
 Saved database records are used by:
 
 HeatMapService  
-DistanceStatisticsService
+DistanceStatisticsService  
 
-The test project provides:
+The application also contains a testable ViewModel architecture:
 
-FakeLocationProvider  
+LocationTrackerViewModel  
 ↓  
-LocationTrackingService Tests
+ILocationProvider  
+↓  
+MauiLocationProvider during normal application use  
 
-This structure allows the application to use real device location services during normal operation while allowing simulated location behavior during automated testing.
+For automated tests:
+
+LocationTrackerViewModel  
+↓  
+ILocationProvider  
+↓  
+FakeLocationProvider  
+
+This architecture allows the application to use real device location services during normal operation while allowing simulated location behavior during automated testing.
 
 ## Key Design Decisions
 
-The application uses an interface named `ILocationProvider` to separate location tracking logic from the .NET MAUI geolocation implementation. This allows a fake location provider to be supplied during unit testing.
+The application uses an interface named `ILocationProvider` to separate location behavior from the .NET MAUI geolocation implementation.
+
+This dependency inversion allows `FakeLocationProvider` to be supplied to `LocationTrackerViewModel` during unit testing without requiring real device movement.
 
 SQLite is used for persistent storage so location history remains available after the application is closed and reopened.
 
-Location tracking only begins when the user selects Start Tracking. The user can stop foreground tracking at any time by selecting Stop Tracking.
+Location tracking begins only when the user selects Start Tracking. The user can stop foreground tracking at any time by selecting Stop Tracking.
 
-The heat map is generated from persisted location records rather than only the current device position. This allows previously recorded movement to remain visible when the application is reopened.
+Android uses the .NET MAUI map to display saved location history and the heat map.
+
+Windows displays saved location history as a list. This satisfies the project requirement that persisted history be visualized as a map or list while allowing the Windows version to operate without an external Azure Maps dependency.
 
 Distance statistics are calculated from consecutive saved location readings. The user interface displays the total distance in miles.
 
 ## Location Permissions
 
-Location Tracker requires location permission because the application must access device position information in order to record movement and display location history.
+Location Tracker requires location permission because the application must access device position information to display the current position, record movement, save location history, and calculate traveled distance.
 
-If location permission is not granted, tracking cannot begin.
+Before requesting location permission, the application explains why the permission is needed.
+
+If location permission is denied, the application remains open and informs the user that location tracking cannot begin until permission is granted.
+
+If permission has already been granted, the application opens normally without requesting permission again.
 
 ## SQLite Storage
 
@@ -91,19 +117,41 @@ Each record contains:
 
 3. Timestamp
 
-The database is stored within the application's local application data area.
+The database is stored inside the application's private local application data directory using `FileSystem.AppDataDirectory`.
 
-## Heat Map
+Saved records remain available after the application is closed and reopened.
 
-The application retrieves saved location records from SQLite and passes them to `HeatMapService`.
+## Android Visualization
 
-The heat map represents areas where saved location readings are concentrated. This provides a visual representation of location history instead of displaying only the current position.
+The Android version displays saved location history on a map.
+
+Saved location readings are passed to `HeatMapService`, which creates a visual representation of areas where location readings are concentrated.
+
+This allows previously recorded movement to remain visible when the application is reopened.
+
+## Windows Visualization
+
+The Windows version displays saved location history in a scrolling list.
+
+Each saved record displays:
+
+1. Timestamp
+
+2. Latitude
+
+3. Longitude
+
+The list is populated from the same persistent SQLite database used by the tracking system.
+
+Saved Windows location records remain available after the application is closed and reopened.
 
 ## Distance Statistics
 
 `DistanceStatisticsService` calculates the distance between consecutive saved coordinates and combines those values to determine total traveled distance.
 
-The application displays the resulting distance in miles.
+The application displays the resulting total distance in miles.
+
+Distance statistics work on both Android and Windows.
 
 ## Unit Testing
 
@@ -111,21 +159,23 @@ The solution contains a separate test project named:
 
 `Location_Tracker.Tests`
 
-The test project uses `FakeLocationProvider` instead of the real device geolocation service.
+The tests use `FakeLocationProvider` instead of the real device geolocation service.
 
-The fake provider allows tests to verify location behavior without requiring physical device movement or Android emulator GPS input.
+`LocationTrackerViewModel` receives location functionality through `ILocationProvider`, allowing the fake provider to be injected during testing.
 
 Current tests verify:
 
-1. The fake location provider can start listening.
+1. `LocationTrackerViewModel` starts tracking using `FakeLocationProvider`.
 
-2. The fake location provider can stop listening.
+2. `LocationTrackerViewModel` stops tracking using `FakeLocationProvider`.
 
-3. The fake provider can send simulated location coordinates.
+3. A simulated location update from `FakeLocationProvider` updates the ViewModel latitude and longitude values.
+
+All current automated tests pass successfully.
 
 ## Android Testing
 
-The primary test environment is the Pixel 7 Android emulator.
+The primary Android test environment is the Pixel 7 emulator.
 
 Android Extended Controls can simulate GPS movement.
 
@@ -147,7 +197,31 @@ To test continuous movement:
 
 8. Stop tracking after the route completes.
 
-9. Verify that location history and distance statistics have updated.
+9. Verify that saved location history, the heat map, and distance statistics have updated.
+
+10. Close and reopen the application to verify that saved history remains available.
+
+## Windows Testing
+
+The Windows version can be launched using Windows Machine in Visual Studio.
+
+Testing verifies:
+
+1. The application builds and launches successfully.
+
+2. Current position is displayed.
+
+3. Start Tracking begins location tracking.
+
+4. Stop Tracking ends location tracking.
+
+5. Location records are stored in SQLite.
+
+6. Saved location history appears in the Windows list.
+
+7. Saved records remain available after the application is closed and reopened.
+
+8. Distance statistics update from saved location records.
 
 ## Google Maps API Key
 
@@ -155,19 +229,33 @@ A valid Google Maps API key is required for Android map functionality.
 
 The real API key must not be committed to the public GitHub repository.
 
-The repository should contain only the sanitized Android configuration. Configure the real API key locally before building and running the Android version.
+The Android manifest uses the placeholder:
+
+`${MAPS_API_KEY}`
+
+The real API key must be configured locally before building and running the Android version.
 
 ## Security Considerations
 
 Location data is treated as sensitive application data.
 
-The application stores location history locally in the application data directory.
+The SQLite database is stored within the application's private local application data directory.
 
-Raw latitude and longitude values should not be unnecessarily exposed in production diagnostic output.
+Android application backup is disabled using:
+
+`android:allowBackup="false"`
+
+This reduces the possibility of the SQLite location history being included in normal Android application backups.
+
+Raw latitude and longitude values are not written to diagnostic logs when location records are saved.
 
 API keys and credentials must not be committed to GitHub.
 
+The public repository contains only sanitized configuration values.
+
 ## Build and Run
+
+### Android
 
 1. Open the solution in Visual Studio.
 
@@ -181,17 +269,41 @@ API keys and credentials must not be committed to GitHub.
 
 6. Run the Location Tracker project.
 
-7. Grant location permission when requested.
+7. Review the location permission explanation.
 
-8. Select Start Tracking to begin collecting location readings.
+8. Grant location permission.
 
-9. Select Stop Tracking when tracking is complete.
+9. Select Start Tracking to begin collecting location readings.
+
+10. Select Stop Tracking when tracking is complete.
+
+### Windows
+
+1. Open the solution in Visual Studio.
+
+2. Select Windows Machine.
+
+3. Build the solution.
+
+4. Run the Location Tracker project.
+
+5. Verify the current position.
+
+6. Select Start Tracking.
+
+7. Allow location readings to be collected.
+
+8. Select Stop Tracking.
+
+9. Verify that saved records appear in Saved Location History.
+
+10. Close and reopen the application to verify persistence.
 
 ## Technologies
 
 .NET MAUI
 
-C Sharp
+C#
 
 SQLite
 
@@ -204,3 +316,5 @@ xUnit
 Visual Studio
 
 Android Emulator
+
+Windows
